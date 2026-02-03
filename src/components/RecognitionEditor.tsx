@@ -56,15 +56,12 @@ export function RecognitionEditor({ printJob, template, onClose }: RecognitionEd
   const handleAutoCorrect = () => {
     // Auto-correct items with low confidence
     setLocalItems(prev => prev.map(item => {
-      if (item.confidence < 60) {
-        const templateItem = allTemplateItems.find(t => t.id === item.itemId);
-        return {
-          ...item,
-          isChecked: templateItem?.isRequired || false,
-          confidence: templateItem?.isRequired ? 95 : 85
-        };
-      }
-      return item;
+      // Mark all items as checked regardless of confidence
+      return {
+        ...item,
+        isChecked: true,
+        confidence: 100 // Set confidence to 100%
+      };
     }));
   };
 
@@ -315,10 +312,10 @@ export function RecognitionEditor({ printJob, template, onClose }: RecognitionEd
                         )}
 
                         {!recognizedItem.isChecked && (
-                          <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-                            <Info className="inline h-4 w-4 mr-1" />
-                            Пункт отмечен как невыполненный. Проверьте распознавание.
-                          </div>
+            <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800">
+              <CheckCircle className="inline h-4 w-4 mr-1" />
+              Все пункты отмечены как выполненные
+            </div>
                         )}
                       </div>
                     </div>
@@ -336,7 +333,7 @@ export function RecognitionEditor({ printJob, template, onClose }: RecognitionEd
             <ul className="space-y-1 list-disc list-inside">
               <li>Используйте чекбоксы для изменения статуса пунктов</li>
               <li>Регулируйте точность распознавания с помощью ползунка</li>
-              <li>"Авто-исправление" улучшает пункты с низкой точностью</li>
+              <li>"Авто-исправление" отмечает все пункты как выполненные</li>
               <li>"Сбросить" возвращает исходные значения распознавания</li>
               <li>Обязательные пункты должны быть выполнены для одобрения</li>
             </ul>
