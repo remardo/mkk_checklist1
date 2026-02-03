@@ -99,6 +99,7 @@ export function TemplateEditor({ templateId, versionId, templateName, sections, 
   };
 
   const handleSave = () => {
+    console.log('Save button clicked', { templateId, versionId, sections: localSections });
     const orderedSections = localSections.map((section, sIndex) => ({
       ...section,
       order: sIndex,
@@ -107,6 +108,7 @@ export function TemplateEditor({ templateId, versionId, templateName, sections, 
         order: iIndex,
       })),
     }));
+    console.log('Calling onSave with:', { templateId, versionId, sections: orderedSections });
     onSave(templateId, versionId, orderedSections);
   };
 

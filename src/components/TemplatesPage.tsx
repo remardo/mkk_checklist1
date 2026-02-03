@@ -54,6 +54,7 @@ export function TemplatesPage() {
   };
 
   const handleSaveSections = (templateId: string, versionId: string, sections: typeof currentVersion.sections) => {
+    console.log('Saving sections:', { templateId, versionId, sections });
     updateVersion(templateId, versionId, { sections });
     setShowEditor(false);
     setEditingTemplateId(null);
@@ -123,6 +124,7 @@ export function TemplatesPage() {
                   </button>
                   <button 
                     onClick={() => {
+                      console.log('Edit button clicked for template:', template.id);
                       setEditingTemplateId(template.id);
                       setShowEditor(true);
                     }}
@@ -168,12 +170,13 @@ export function TemplatesPage() {
                 </div>
                  <div className="flex gap-2">
                    <button 
-                     onClick={() => {
-                       setEditingTemplateId(selectedTemplateId);
-                       setShowEditor(true);
-                     }}
-                     className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                   >
+                      onClick={() => {
+                        console.log('Edit button clicked for selected template:', selectedTemplateId);
+                        setEditingTemplateId(selectedTemplateId);
+                        setShowEditor(true);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
                      <Edit2 className="h-4 w-4" />
                      Редактировать
                    </button>
@@ -264,18 +267,25 @@ export function TemplatesPage() {
        )}
        
         {/* Template Editor Modal */}
-        {showEditor && editingTemplateId && selectedTemplate && currentVersion && (
-          <TemplateEditor
-            templateId={editingTemplateId}
-            versionId={currentVersion.id}
-            templateName={selectedTemplate.name}
-            sections={currentVersion.sections}
-            onSave={handleSaveSections}
-            onCancel={() => {
-              setShowEditor(false);
-              setEditingTemplateId(null);
-            }}
-          />
+        {showEditor && editingTemplateId && (
+          (() => {
+            const template = templates.find(t => t.id === editingTemplateId);
+            const version = template?.versions.find(v => v.id === template?.currentVersionId);
+            return template && version ? (
+              <TemplateEditor
+                templateId={editingTemplateId}
+                versionId={version.id}
+                templateName={template.name}
+                sections={version.sections}
+                onSave={handleSaveSections}
+                onCancel={() => {
+                  console.log('Cancel clicked');
+                  setShowEditor(false);
+                  setEditingTemplateId(null);
+                }}
+              />
+            ) : null;
+          })()
         )}
      </div>
    );
