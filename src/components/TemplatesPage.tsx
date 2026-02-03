@@ -7,15 +7,21 @@ import {
   Archive, 
   CheckCircle,
   Clock,
-  ChevronRight
+  ChevronRight,
+  Settings,
+  Save
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { checklistTypeLabels } from '../types';
+import { checklistTypeLabels, type TemplateStatus, type ChecklistTemplateType } from '../types';
 import { cn } from '../utils/cn';
+import { TemplateEditor } from './TemplateEditor';
 
 export function TemplatesPage() {
-  const { templates } = useApp();
+  const { templates, updateTemplate, createNewVersion, updateVersion, setCurrentVersion } = useApp();
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [showEditor, setShowEditor] = useState(false);
 
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
   const currentVersion = selectedTemplate?.versions.find(v => v.id === selectedTemplate.currentVersionId);
@@ -36,6 +42,20 @@ export function TemplatesPage() {
     draft: 'bg-yellow-100 text-yellow-700',
     published: 'bg-green-100 text-green-700',
     archived: 'bg-gray-100 text-gray-500',
+  };
+
+  const handleCreateNewVersion = (templateId: string) => {
+    createNewVersion(templateId);
+    const template = templates.find(t => t.id === templateId);
+    if (template) {
+      const newVersion = template.versions[template.versions.length - 1];
+      setCurrentVersion(templateId, newVersion.id);
+    }
+  };
+
+  const handleSaveSections = (templateId: string, versionId: string, sections: typeof currentVersion.sections) => {
+    updateVersion(templateId, versionId, { sections });
+    setShowEditor(false);
   };
 
   return (
@@ -93,14 +113,20 @@ export function TemplatesPage() {
                 </div>
                 
                 <div className="border-t border-gray-100 p-3 bg-gray-50 flex gap-2">
-                  <button
+                  <button 
                     onClick={() => setSelectedTemplateId(template.id)}
                     className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                   >
                     <Eye className="h-4 w-4" />
                     Просмотр
                   </button>
-                  <button className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                  <button 
+                    onClick={() => {
+                      setEditingTemplateId(template.id);
+                      setShowEditor(true);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
                     <Edit2 className="h-4 w-4" />
                     Изменить
                   </button>
@@ -139,16 +165,25 @@ export function TemplatesPage() {
                   </span>
                   <p className="text-gray-500 mt-2">{selectedTemplate?.description}</p>
                 </div>
-                <div className="flex gap-2">
-                  <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                    <Edit2 className="h-4 w-4" />
-                    Редактировать
-                  </button>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                    <Plus className="h-4 w-4" />
-                    Новая версия
-                  </button>
-                </div>
+                 <div className="flex gap-2">
+                   <button 
+                     onClick={() => {
+                       setEditingTemplateId(selectedTemplateId);
+                       setShowEditor(true);
+                     }}
+                     className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                   >
+                     <Edit2 className="h-4 w-4" />
+                     Редактировать
+                   </button>
+                   <button 
+                     onClick={() => handleCreateNewVersion(selectedTemplateId)}
+                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                   >
+                     <Plus className="h-4 w-4" />
+                     Новая версия
+                   </button>
+                 </div>
               </div>
             </div>
 
@@ -223,9 +258,23 @@ export function TemplatesPage() {
                 ))}
               </div>
             </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+           </div>
+         </div>
+       )}
+       
+       {/* Template Editor Modal */}
+       {showEditor && editingTemplateId && selectedTemplate && currentVersion && (
+         <TemplateEditor
+           templateId={editingTemplateId}
+           templateName={selectedTemplate.name}
+           sections={currentVersion.sections}
+           onSave={(sections) => handleSaveSections(editingTemplateId, currentVersion.id, sections)}
+           onCancel={() => {
+             setShowEditor(false);
+             setEditingTemplateId(null);
+           }}
+         />
+       )}
+     </div>
+   );
+ }

@@ -25,6 +25,12 @@ interface AppContextType {
   approvePrintJob: (printJobId: string, comment?: string) => void;
   rejectPrintJob: (printJobId: string, comment?: string) => void;
   
+  // Редактирование шаблонов
+  updateTemplate: (templateId: string, updates: Partial<Pick<ChecklistTemplate, 'name' | 'description' | 'status' | 'type'>>) => void;
+  createNewVersion: (templateId: string) => void;
+  updateVersion: (templateId: string, versionId: string, updates: Partial<Pick<TemplateVersion, 'sections'>>) => void;
+  setCurrentVersion: (templateId: string, versionId: string) => void;
+  
   // Утилиты
   getUserOffices: () => Office[];
   getOfficeById: (id: string) => Office | undefined;
@@ -311,6 +317,52 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   }, [currentUser]);
 
+  const updateTemplate = useCallback((templateId: string, updates: Partial<Pick<ChecklistTemplate, 'name' | 'description' | 'status' | 'type'>>) => {
+    setTemplates(prev => prev.map(t => 
+      t.id === templateId ? { ...t, ...updates } : t
+    ));
+  }, []);
+
+  const createNewVersion = useCallback((templateId: string) => {
+    setTemplates(prev => prev.map(t => {
+      if (t.id !== templateId) return t;
+      
+      const currentVersion = t.versions.find(v => v.id === t.currentVersionId);
+      const newVersionNumber = (currentVersion?.versionNumber || 0) + 1;
+      const newVersion: TemplateVersion = {
+        id: `tv${Date.now()}`,
+        templateId: t.id,
+        versionNumber: newVersionNumber,
+        createdAt: new Date().toISOString(),
+        createdBy: currentUser?.id || 'unknown',
+        status: 'draft',
+        sections: currentVersion?.sections || [],
+      };
+      
+      return {
+        ...t,
+        versions: [...t.versions, newVersion],
+      };
+    }));
+  }, [currentUser]);
+
+  const updateVersion = useCallback((templateId: string, versionId: string, updates: Partial<Pick<TemplateVersion, 'sections'>>) => {
+    setTemplates(prev => prev.map(t => 
+      t.id === templateId ? {
+        ...t,
+        versions: t.versions.map(v => 
+          v.id === versionId ? { ...v, ...updates } : v
+        ),
+      } : t
+    ));
+  }, []);
+
+  const setCurrentVersion = useCallback((templateId: string, versionId: string) => {
+    setTemplates(prev => prev.map(t => 
+      t.id === templateId ? { ...t, currentVersionId: versionId } : t
+    ));
+  }, []);
+
   return (
     <AppContext.Provider
       value={{
@@ -328,6 +380,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateRecognitionItems,
         approvePrintJob,
         rejectPrintJob,
+        updateTemplate,
+        createNewVersion,
+        updateVersion,
+        setCurrentVersion,
         getUserOffices,
         getOfficeById,
         getTemplateById,
