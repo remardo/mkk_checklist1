@@ -43,7 +43,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [offices] = useState<Office[]>(mockOffices);
-  const [templates] = useState<ChecklistTemplate[]>(mockTemplates);
+  const [templates, setTemplates] = useState<ChecklistTemplate[]>(mockTemplates);
   const [printJobs, setPrintJobs] = useState<PrintJob[]>(mockPrintJobs);
   const [selectedOfficeId, setSelectedOfficeId] = useState<string | null>(null);
 
