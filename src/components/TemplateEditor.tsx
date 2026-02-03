@@ -5,13 +5,14 @@ import { cn } from '../utils/cn';
 
 interface TemplateEditorProps {
   templateId: string;
+  versionId: string;
   templateName: string;
   sections: ChecklistSection[];
-  onSave: (sections: ChecklistSection[]) => void;
+  onSave: (templateId: string, versionId: string, sections: ChecklistSection[]) => void;
   onCancel: () => void;
 }
 
-export function TemplateEditor({ templateId, templateName, sections, onSave, onCancel }: TemplateEditorProps) {
+export function TemplateEditor({ templateId, versionId, templateName, sections, onSave, onCancel }: TemplateEditorProps) {
   const [localSections, setLocalSections] = useState<ChecklistSection[]>([]);
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -106,7 +107,7 @@ export function TemplateEditor({ templateId, templateName, sections, onSave, onC
         order: iIndex,
       })),
     }));
-    onSave(orderedSections);
+    onSave(templateId, versionId, orderedSections);
   };
 
   return (

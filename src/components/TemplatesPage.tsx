@@ -56,6 +56,7 @@ export function TemplatesPage() {
   const handleSaveSections = (templateId: string, versionId: string, sections: typeof currentVersion.sections) => {
     updateVersion(templateId, versionId, { sections });
     setShowEditor(false);
+    setEditingTemplateId(null);
   };
 
   return (
@@ -262,19 +263,20 @@ export function TemplatesPage() {
          </div>
        )}
        
-       {/* Template Editor Modal */}
-       {showEditor && editingTemplateId && selectedTemplate && currentVersion && (
-         <TemplateEditor
-           templateId={editingTemplateId}
-           templateName={selectedTemplate.name}
-           sections={currentVersion.sections}
-           onSave={(sections) => handleSaveSections(editingTemplateId, currentVersion.id, sections)}
-           onCancel={() => {
-             setShowEditor(false);
-             setEditingTemplateId(null);
-           }}
-         />
-       )}
+        {/* Template Editor Modal */}
+        {showEditor && editingTemplateId && selectedTemplate && currentVersion && (
+          <TemplateEditor
+            templateId={editingTemplateId}
+            versionId={currentVersion.id}
+            templateName={selectedTemplate.name}
+            sections={currentVersion.sections}
+            onSave={handleSaveSections}
+            onCancel={() => {
+              setShowEditor(false);
+              setEditingTemplateId(null);
+            }}
+          />
+        )}
      </div>
    );
  }
