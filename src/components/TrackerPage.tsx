@@ -7,12 +7,14 @@ import {
   LayoutGrid, 
   List,
   ChevronDown,
-  Eye
+  Eye,
+  Edit3
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { statusLabels, statusColors, checklistTypeLabels, type PrintJobStatus } from '../types';
 import { cn } from '../utils/cn';
 import { PrintJobDetail } from './PrintJobDetail';
+import { RecognitionEditor } from './RecognitionEditor';
 
 type ViewMode = 'table' | 'kanban';
 
@@ -27,45 +29,44 @@ const statusOrder: PrintJobStatus[] = [
 ];
 
 export function TrackerPage() {
-  const { printJobs, currentUser, selectedOfficeId, templates, getUserOffices } = useApp();
+  const { printJobs, currentUser, selectedOfficeId, templates, getUserOffices, getTemplateById } = useApp();
   const [viewMode, setViewMode] = useState<ViewMode>('table');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<PrintJobStatus | 'all'>('all');
-  const [templateFilter, setTemplateFilter] = useState<string>('all');
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showRecognitionEditor, setShowRecognitionEditor] = useState<string | null>(null);
 
-  const userOffices = getUserOffices();
+  const selectedOffice = selectedOfficeId ? getUserOffices().find(o => o.id === selectedOfficeId) : null;
+  
+  // Filter jobs for current office
+  const officeJobs = printJobs.filter(job => job.officeId === selectedOfficeId);
 
-  // Filter jobs
-  const filteredJobs = printJobs.filter(job => {
-    // Office filter
-    if (selectedOfficeId && job.officeId !== selectedOfficeId) return false;
-    if (!selectedOfficeId && !userOffices.find(o => o.id === job.officeId)) return false;
+  // Apply filters
+  const filteredJobs = officeJobs.filter(job => {
+    const matchesSearch = job.shortId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         job.templateName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         job.createdByName.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // Role-based filter
-    if (currentUser?.role === 'employee' && job.createdBy !== currentUser.id) return false;
+    const matchesStatus = filterStatus === 'all' || job.status === filterStatus;
     
-    // Search
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      if (
-        !job.shortId.toLowerCase().includes(query) &&
-        !job.templateName.toLowerCase().includes(query) &&
-        !job.createdByName.toLowerCase().includes(query)
-      ) {
-        return false;
-      }
+    return matchesSearch && matchesStatus;
+  });
+
+  const sortedJobs = filteredJobs.sort((a, b) => 
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
+  const handleRecognitionEdit = (printJobId: string) => {
+    const printJob = printJobs.find(job => job.id === printJobId);
+    const template = getTemplateById(printJob?.templateId || '');
+    if (printJob && template && printJob.recognitionResult) {
+      setShowRecognitionEditor(printJobId);
     }
-    
-    // Status filter
-    if (statusFilter !== 'all' && job.status !== statusFilter) return false;
-    
-    // Template filter
-    if (templateFilter !== 'all' && job.templateId !== templateFilter) return false;
-    
-    return true;
-  }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  };
+
+  const closeRecognitionEditor = () => {
+    setShowRecognitionEditor(null);
+  };
 
   const selectedJob = selectedJobId ? printJobs.find(j => j.id === selectedJobId) : null;
 
@@ -93,105 +94,106 @@ export function TrackerPage() {
     return acc;
   }, {} as Record<PrintJobStatus, typeof filteredJobs>);
 
+  if (!selectedOfficeId) {
+    return (
+      <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100">
+        <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+        <p className="text-gray-500">Выберите офис для просмотра экземпляров</p>
+      </div>
+    );
+  }
+
   if (selectedJob) {
     return (
-      <PrintJobDetail 
-        job={selectedJob} 
-        onBack={() => setSelectedJobId(null)} 
+      <PrintJobDetail
+        job={selectedJob}
+        template={templates.find(t => t.id === selectedJob.templateId)}
+        office={selectedOffice}
+        onClose={() => setSelectedJobId(null)}
+        onRecognitionEdit={handleRecognitionEdit}
+      />
+    );
+  }
+
+  // Add recognition editor modal
+  if (showRecognitionEditor) {
+    return (
+      <RecognitionEditor
+        printJob={printJobs.find(job => job.id === showRecognitionEditor)!}
+        template={getTemplateById(printJobs.find(job => job.id === showRecognitionEditor)?.templateId || '')}
+        onClose={closeRecognitionEditor}
       />
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Controls */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900">Трекер экземпляров</h2>
+          <p className="text-gray-500">
+            Офис: {selectedOffice?.name} • Всего: {filteredJobs.length}
+          </p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Search */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Поиск по ID, названию, сотруднику..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Поиск по ID, шаблону или автору..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Status filter */}
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-gray-400" />
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">Все статусы</option>
+              {statusOrder.map(status => (
+                <option key={status} value={status}>
+                  {statusLabels[status]} ({jobsByStatus[status].length})
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* View mode toggle */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
             <button
-              onClick={() => setShowFilters(!showFilters)}
+              onClick={() => setViewMode('table')}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors",
-                showFilters
-                  ? "border-blue-500 bg-blue-50 text-blue-700"
-                  : "border-gray-200 text-gray-600 hover:border-gray-300"
+                "px-3 py-1.5 rounded text-sm font-medium transition-colors",
+                viewMode === 'table' ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
               )}
             >
-              <Filter className="h-4 w-4" />
-              Фильтры
-              <ChevronDown className={cn("h-4 w-4 transition-transform", showFilters && "rotate-180")} />
+              <List className="h-4 w-4" />
             </button>
-
-            <div className="flex bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('table')}
-                className={cn(
-                  "p-2 rounded-md transition-colors",
-                  viewMode === 'table' ? "bg-white shadow-sm" : "text-gray-500 hover:text-gray-700"
-                )}
-              >
-                <List className="h-5 w-5" />
-              </button>
-              <button
-                onClick={() => setViewMode('kanban')}
-                className={cn(
-                  "p-2 rounded-md transition-colors",
-                  viewMode === 'kanban' ? "bg-white shadow-sm" : "text-gray-500 hover:text-gray-700"
-                )}
-              >
-                <LayoutGrid className="h-5 w-5" />
-              </button>
-            </div>
+            <button
+              onClick={() => setViewMode('kanban')}
+              className={cn(
+                "px-3 py-1.5 rounded text-sm font-medium transition-colors",
+                viewMode === 'kanban' ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
+              )}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
           </div>
         </div>
-
-        {/* Expanded filters */}
-        {showFilters && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-100">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Статус</label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as PrintJobStatus | 'all')}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="all">Все статусы</option>
-                {statusOrder.map(status => (
-                  <option key={status} value={status}>{statusLabels[status]}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Тип чеклиста</label>
-              <select
-                value={templateFilter}
-                onChange={(e) => setTemplateFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="all">Все типы</option>
-                {templates.map(t => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} ({checklistTypeLabels[t.type]})
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Results count */}
@@ -216,53 +218,68 @@ export function TrackerPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredJobs.map(job => (
-                  <tr key={job.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <span className="font-mono text-sm font-medium text-gray-900">{job.shortId}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm text-gray-700">{job.templateName}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm text-gray-700">{formatDate(job.checklistDate)}</span>
-                        {job.shift && (
-                          <span className="text-xs text-gray-500">
-                            ({job.shift === 'morning' ? 'утро' : 'вечер'})
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-sm text-gray-700">{job.createdByName}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={cn("px-2 py-1 rounded-full text-xs font-medium", statusColors[job.status])}>
-                        {statusLabels[job.status]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-sm text-gray-500">{formatDateTime(job.createdAt)}</span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => setSelectedJobId(job.id)}
-                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        <Eye className="h-5 w-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {sortedJobs.map(job => {
+                  const needsRecognition = job.status === 'RECOGNIZED_NEED_REVIEW' || job.status === 'RECOGNIZED_AUTO_OK';
+                  const hasRecognitionResult = !!job.recognitionResult;
+                  
+                  return (
+                    <tr key={job.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <span className="font-mono text-sm font-medium text-gray-900">{job.shortId}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-gray-400" />
+                          <span className="text-sm text-gray-700">{job.templateName}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-gray-400" />
+                          <span className="text-sm text-gray-700">{formatDate(job.checklistDate)}</span>
+                          {job.shift && (
+                            <span className="text-xs text-gray-500">
+                              ({job.shift === 'morning' ? 'утро' : 'вечер'})
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-sm text-gray-700">{job.createdByName}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={cn("px-2 py-1 rounded-full text-xs font-medium", statusColors[job.status])}>
+                          {statusLabels[job.status]}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-sm text-gray-500">{formatDateTime(job.createdAt)}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setSelectedJobId(job.id)}
+                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          >
+                            <Eye className="h-5 w-5" />
+                          </button>
+                          {hasRecognitionResult && job.recognitionResult && (
+                            <button
+                              onClick={() => handleRecognitionEdit(job.id)}
+                              className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                            >
+                              <Edit3 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-
+          
           {filteredJobs.length === 0 && (
             <div className="p-8 text-center">
               <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
@@ -292,6 +309,17 @@ export function TrackerPage() {
                   >
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-mono text-sm font-medium text-gray-900">{job.shortId}</span>
+                      {job.recognitionResult && ['RECOGNIZED_NEED_REVIEW', 'RECOGNIZED_AUTO_OK'].includes(job.status) && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRecognitionEdit(job.id);
+                          }}
+                          className="p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                        >
+                          <Edit3 className="h-3 w-3" />
+                        </button>
+                      )}
                     </div>
                     <p className="text-sm text-gray-700 mb-1 truncate">{job.templateName}</p>
                     <p className="text-xs text-gray-500">{formatDate(job.checklistDate)}</p>

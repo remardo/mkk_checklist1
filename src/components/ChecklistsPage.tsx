@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { FileText, Printer, Calendar, Clock, ChevronRight } from 'lucide-react';
+import { FileText, Printer, Calendar, Clock, ChevronRight, Edit3 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useApp } from '../context/AppContext';
 import { checklistTypeLabels } from '../types';
 import { cn } from '../utils/cn';
+import { RecognitionEditor } from './RecognitionEditor';
 
 export function ChecklistsPage() {
-  const { templates, selectedOfficeId, getOfficeById, createPrintJob, currentUser } = useApp();
+  const { templates, selectedOfficeId, getOfficeById, createPrintJob, currentUser, printJobs, getTemplateById } = useApp();
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [generatedJob, setGeneratedJob] = useState<{
     id: string;
@@ -18,6 +19,7 @@ export function ChecklistsPage() {
   } | null>(null);
   const [checklistDate, setChecklistDate] = useState(new Date().toISOString().split('T')[0]);
   const [shift, setShift] = useState<'morning' | 'evening'>('morning');
+  const [showRecognitionEditor, setShowRecognitionEditor] = useState<string | null>(null);
 
   const office = selectedOfficeId ? getOfficeById(selectedOfficeId) : null;
   
@@ -54,6 +56,18 @@ export function ChecklistsPage() {
   const handleBack = () => {
     setGeneratedJob(null);
     setSelectedTemplate(null);
+  };
+
+  const handleRecognitionEdit = (printJobId: string) => {
+    const printJob = printJobs.find(job => job.id === printJobId);
+    const template = getTemplateById(printJob?.templateId || '');
+    if (printJob && template && printJob.recognitionResult) {
+      setShowRecognitionEditor(printJobId);
+    }
+  };
+
+  const closeRecognitionEditor = () => {
+    setShowRecognitionEditor(null);
   };
 
   if (!selectedOfficeId) {
