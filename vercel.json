@@ -5,7 +5,11 @@
   "framework": "vite",
   "routes": [
     {
-      "src": "/.*",
+      "src": "/assets/(.*)",
+      "dest": "/assets/$1"
+    },
+    {
+      "src": "/(.*)",
       "dest": "/index.html"
     }
   ]
