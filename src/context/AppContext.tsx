@@ -31,6 +31,11 @@ interface AppContextType {
   updateVersion: (templateId: string, versionId: string, updates: Partial<Pick<TemplateVersion, 'sections'>>) => void;
   setCurrentVersion: (templateId: string, versionId: string) => void;
   
+  // Управление офисами
+  createOffice: (office: Omit<Office, 'id'>) => void;
+  updateOffice: (officeId: string, updates: Partial<Pick<Office, 'name' | 'code' | 'address' | 'isActive' | 'managerIds' | 'templateIds'>>) => void;
+  deleteOffice: (officeId: string) => void;
+  
   // Утилиты
   getUserOffices: () => Office[];
   getOfficeById: (id: string) => Office | undefined;
@@ -42,7 +47,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [offices] = useState<Office[]>(mockOffices);
+  const [offices, setOffices] = useState<Office[]>(mockOffices);
   const [templates, setTemplates] = useState<ChecklistTemplate[]>(mockTemplates);
   const [printJobs, setPrintJobs] = useState<PrintJob[]>(mockPrintJobs);
   const [selectedOfficeId, setSelectedOfficeId] = useState<string | null>(null);
@@ -363,6 +368,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ));
   }, []);
 
+  const createOffice = useCallback((office: Omit<Office, 'id'>) => {
+    const newOffice: Office = {
+      ...office,
+      id: `o${Date.now()}`,
+    };
+    setOffices(prev => [...prev, newOffice]);
+  }, []);
+
+  const updateOffice = useCallback((officeId: string, updates: Partial<Pick<Office, 'name' | 'code' | 'address' | 'isActive' | 'managerIds' | 'templateIds'>>) => {
+    setOffices(prev => prev.map(o => 
+      o.id === officeId ? { ...o, ...updates } : o
+    ));
+  }, []);
+
+  const deleteOffice = useCallback((officeId: string) => {
+    setOffices(prev => prev.filter(o => o.id !== officeId));
+  }, []);
+
   return (
     <AppContext.Provider
       value={{
@@ -384,6 +407,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         createNewVersion,
         updateVersion,
         setCurrentVersion,
+        createOffice,
+        updateOffice,
+        deleteOffice,
         getUserOffices,
         getOfficeById,
         getTemplateById,

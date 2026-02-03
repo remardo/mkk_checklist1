@@ -1,13 +1,45 @@
 import { useState } from 'react';
-import { Building2, MapPin, Users, FileText, Check, X, Plus, Edit2 } from 'lucide-react';
+import { Building2, MapPin, Users, FileText, Check, X, Plus, Edit2, Trash2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { cn } from '../utils/cn';
+import { OfficeEditor } from './OfficeEditor';
 
 export function OfficesPage() {
-  const { offices, templates } = useApp();
+  const { offices, templates, createOffice, updateOffice, deleteOffice } = useApp();
   const [selectedOffice, setSelectedOffice] = useState<string | null>(null);
+  const [showEditor, setShowEditor] = useState(false);
+  const [editingOffice, setEditingOffice] = useState<Office | undefined>(undefined);
 
   const office = offices.find(o => o.id === selectedOffice);
+
+  const handleAddOffice = () => {
+    setEditingOffice(undefined);
+    setShowEditor(true);
+  };
+
+  const handleEditOffice = (office: Office) => {
+    setEditingOffice(office);
+    setShowEditor(true);
+  };
+
+  const handleSaveOffice = (officeData: Omit<Office, 'id'>) => {
+    if (editingOffice) {
+      updateOffice(editingOffice.id, officeData);
+    } else {
+      createOffice(officeData);
+    }
+    setShowEditor(false);
+    setEditingOffice(undefined);
+  };
+
+  const handleDeleteOffice = (officeId: string) => {
+    if (confirm('Вы уверены, что хотите удалить этот офис?')) {
+      deleteOffice(officeId);
+      setSelectedOffice(null);
+      setShowEditor(false);
+      setEditingOffice(undefined);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -17,7 +49,10 @@ export function OfficesPage() {
           <h2 className="text-xl font-semibold text-gray-900">Управление офисами</h2>
           <p className="text-gray-500">Всего офисов: {offices.length}</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+        <button 
+          onClick={handleAddOffice}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
           <Plus className="h-5 w-5" />
           Добавить офис
         </button>
@@ -82,7 +117,10 @@ export function OfficesPage() {
                     </div>
                     <p className="text-gray-500">Код: {office.code}</p>
                   </div>
-                  <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                  <button 
+                    onClick={() => handleEditOffice(office)}
+                    className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
                     <Edit2 className="h-4 w-4" />
                     Редактировать
                   </button>
@@ -174,7 +212,21 @@ export function OfficesPage() {
             </div>
           )}
         </div>
-      </div>
-    </div>
-  );
-}
+       </div>
+
+       {/* Office Editor Modal */}
+       {showEditor && (
+         <OfficeEditor
+           office={editingOffice}
+           templates={templates}
+           onSave={handleSaveOffice}
+           onCancel={() => {
+             setShowEditor(false);
+             setEditingOffice(undefined);
+           }}
+           onDelete={editingOffice ? () => handleDeleteOffice(editingOffice.id) : undefined}
+         />
+       )}
+     </div>
+   );
+ }
