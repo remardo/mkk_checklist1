@@ -56,11 +56,19 @@ export function RecognitionEditor({ printJob, template, onClose }: RecognitionEd
   const handleAutoCorrect = () => {
     // Auto-correct items with low confidence
     setLocalItems(prev => prev.map(item => {
-      // Mark all items as checked regardless of confidence
+      // Only mark as checked if recognition confidence is above threshold
+      const templateItem = allTemplateItems.find(t => t.id === item.itemId);
+      if (item.confidence >= 50) { // Only auto-check items with decent confidence
+        return {
+          ...item,
+          isChecked: true,
+          confidence: Math.max(item.confidence, 85) // Ensure minimum confidence
+        };
+      }
+      // For low confidence items, keep recognition result but don't force check
       return {
         ...item,
-        isChecked: true,
-        confidence: 100 // Set confidence to 100%
+        confidence: item.confidence
       };
     }));
   };
@@ -128,9 +136,15 @@ export function RecognitionEditor({ printJob, template, onClose }: RecognitionEd
     return Math.round(total / localItems.length);
   };
 
+  const getConfidenceLevel = (confidence: number) => {
+    if (confidence >= 80) return 'Высокая';
+    if (confidence >= 60) return 'Средняя';
+    return 'Низкая';
+  };
+
   const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 90) return 'text-green-600 bg-green-100';
-    if (confidence >= 70) return 'text-yellow-600 bg-yellow-100';
+    if (confidence >= 80) return 'text-green-600 bg-green-100';
+    if (confidence >= 60) return 'text-yellow-600 bg-yellow-100';
     return 'text-red-600 bg-red-100';
   };
 
@@ -188,10 +202,14 @@ export function RecognitionEditor({ printJob, template, onClose }: RecognitionEd
           <div className="flex items-center justify-between mt-4">
             <div className="flex items-center gap-3">
               <div className={cn(
-                "px-3 py-1 rounded-full text-sm font-medium",
-                getConfidenceColor(getOverallConfidence())
+                "px-2 py-1 rounded text-xs font-medium",
+                recognizedItem.confidence >= 80 ? "bg-green-100 text-green-700" :
+                recognizedItem.confidence >= 60 ? "bg-yellow-100 text-yellow-700" :
+                "bg-red-100 text-red-700"
               )}>
-                Точность: {getOverallConfidence()}%
+                {recognizedItem.confidence >= 80 ? 'Высокая' :
+                 recognizedItem.confidence >= 60 ? 'Средняя' :
+                 'Низкая'}
               </div>
               
               <button
@@ -314,7 +332,7 @@ export function RecognitionEditor({ printJob, template, onClose }: RecognitionEd
                         {!recognizedItem.isChecked && (
             <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800">
               <CheckCircle className="inline h-4 w-4 mr-1" />
-              Все пункты отмечены как выполненные
+              Авто-исправление завершено. Пункты с уверенностью ≥50% отмечены как выполненные.
             </div>
                         )}
                       </div>
@@ -333,7 +351,7 @@ export function RecognitionEditor({ printJob, template, onClose }: RecognitionEd
             <ul className="space-y-1 list-disc list-inside">
               <li>Используйте чекбоксы для изменения статуса пунктов</li>
               <li>Регулируйте точность распознавания с помощью ползунка</li>
-              <li>"Авто-исправление" отмечает все пункты как выполненные</li>
+              <li>"Авто-исправление" отмечает пункты с уверенностью ≥50% как выполненные</li>
               <li>"Сбросить" возвращает исходные значения распознавания</li>
               <li>Обязательные пункты должны быть выполнены для одобрения</li>
             </ul>
